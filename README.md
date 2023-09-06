@@ -12,3 +12,5 @@ BUSY(16)           D7
 SPK-(6)
 SPK+(8)
 ```
+
+It plays 01 folder and 11 mp3 files randomly.  
