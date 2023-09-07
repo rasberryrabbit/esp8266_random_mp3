@@ -1,6 +1,9 @@
 sply = softuart.setup(9600, 6, 5) -- TX d6, RX d5, for DFPlayer
-sply:on("data",5, function(data)
-  print(data)
+sply:on("data",10, function(data) -- 10 bytes returns from DFPlayer
+  for i=1, #data do
+    ch=string.sub(data, i,i)
+    print(string.format("%02x",string.byte(ch)) .. " ")
+  end
 end)
 
 local scnt=0
