@@ -5,7 +5,6 @@ sply:on("data",10, function(data) -- 10 bytes returns from DFPlayer
   local rs=""
   if string.byte(data,4)==0x4E then
     maxsnd=string.byte(data,7)
-    print("MP3 Files "..string.format("%d",maxsnd))
   end
   for i=1,#data do
     rs=rs .. string.format("%02x",string.byte(data,i)) .. " "

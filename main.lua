@@ -14,6 +14,9 @@ repeat
 until currtime-lasttime>=1
 
 dofile("cc.lua").ply(0x4e,0x00,0x01)
+repeat
+  currtime=rtctime.get()
+until currtime-lasttime>=2
 
 worker=tmr.create()
 worker:register(1000, tmr.ALARM_AUTO , function(t)
@@ -23,10 +26,13 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
         lasttime=currtime
         print("play")
         intv=node.random(45,180)
-        local rfile=node.random(1,maxsnd)
-        print("rfile "..string.format("%d",rfile))
-        -- folder nn, file nnn
-        dofile("cc.lua").ply(0x03,0x01,rfile)
+        if maxsnd>0 then
+          print("MP3 Files "..string.format("%d",maxsnd))
+          local rfile=node.random(1,maxsnd)
+          print("rfile "..string.format("%d",rfile))
+          -- folder nn, file nnn
+          dofile("cc.lua").ply(0x03,0x01,rfile)
+        end
         print(intv)
       end
     end
