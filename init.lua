@@ -1,9 +1,14 @@
+maxsnd=0
+
 sply = softuart.setup(9600, 6, 5) -- TX d6, RX d5, for DFPlayer
 sply:on("data",10, function(data) -- 10 bytes returns from DFPlayer
   local rs=""
-  for i=1, #data do
-    ch=string.sub(data, i,i)
-    rs = rs .. string.format("%02x",string.byte(ch)) .. " "
+  if string.byte(data,4)==0x4E then
+    maxsnd=string.byte(data,7)
+    print("MP3 Files "..string.format("%d",maxsnd))
+  end
+  for i=1,#data do
+    rs=rs .. string.format("%02x",string.byte(data,i)) .. " "
   end
   print(rs)
 end)
