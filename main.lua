@@ -1,6 +1,6 @@
 lasttime=rtctime.get()
 intv=node.random(45,180)
-_G.lastid=0
+lastid=0
 gpio.mode(4, gpio.OUTPUT)
 gpio.write(4, gpio.HIGH)
 workid=0
@@ -28,29 +28,30 @@ worker=tmr.create()
 worker:register(1000, tmr.ALARM_AUTO , function(t)
   currtime=rtctime.get()
   if workid==0 then
-    _G.dfres=0
+    dfres=0
     lasttime=rtctime.get()
     dofile("cc.lua").ply(0x0c,0x00,0x00)
     print("reset player")
     workid=1
   elseif workid==1 then
-    if currtime-lasttime>=10 or _G.dfres==1 or gpio.read(7)==1 then
-      _G.dfres=0
+    if currtime-lasttime>=10 or dfres==1 or gpio.read(7)==1 then
+      dfres=0
       lasttime=rtctime.get()
       dofile("cc.lua").ply(0x06,0x00,0x14)
       print("set volume")
       workid=2
     end
   elseif workid==2 then
-    if currtime-lasttime>=10 or _G.dfres==1 or gpio.read(7)==1 then
-      _G.dfres=0
+    if currtime-lasttime>=10 or dfres==1 or gpio.read(7)==1 then
+      dfres=0
+      dfpmedia=0
       lasttime=rtctime.get()
       dofile("cc.lua").ply(0x4e,0x00,0x01)
       print("query tracks")
       workid=3
     end
   elseif workid==3 then
-    if currtime-lasttime>=10 or _G.dfres==1 then
+    if currtime-lasttime>=10 or dfres==1 then
       print("Start player")
       workid=5
     end
@@ -72,7 +73,8 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
           dofile("cc.lua").ply(0x03,0x01,rfile)
         else
           -- query files
-          _G.dfres=1
+          dfres=1
+          intv=1
           workid=2
         end
         print(intv)
@@ -82,6 +84,11 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
         workid=0
       end
     else
+      if dfpmedia==1 then
+        dfres=1
+        workid=2
+        print("Plugin")
+      end
       --pulser:start(function() end)
     end
   end
