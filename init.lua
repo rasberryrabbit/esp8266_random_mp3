@@ -1,4 +1,6 @@
 maxsnd=0
+maxfolder=0
+_G.dfres=0
 
 sply = softuart.setup(9600, 6, 5) -- TX d6, RX d5, for DFPlayer
 sply:on("data",10, function(data) -- 10 bytes returns from DFPlayer
@@ -6,6 +8,10 @@ sply:on("data",10, function(data) -- 10 bytes returns from DFPlayer
   if string.byte(data,4)==0x4E then
     maxsnd=string.byte(data,7)
   end
+  if string.byte(data,4)==0x4F then
+    maxfolder=string.byte(data,7)
+  end
+  _G.dfres=1
   for i=1,#data do
     rs=rs .. string.format("%02x",string.byte(data,i)) .. " "
   end
