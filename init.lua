@@ -14,7 +14,7 @@ sply:on("data",10, function(data) -- 10 bytes returns from DFPlayer
       break
     end
   end
-  if string.byte(data,sp)==0x7e then
+  if string.byte(data,sp)==0x7e and string.byte(data,sp+1)==0xff then
     if string.byte(data,sp+3)==0x40 then
       dfperror=string.byte(data,sp+6)
     else
