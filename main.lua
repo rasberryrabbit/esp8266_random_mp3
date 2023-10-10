@@ -37,7 +37,7 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
     if currtime-lasttime>=10 or dfres==1 or gpio.read(7)==1 then
       dfres=0
       lasttime=rtctime.get()
-      dofile("cc.lua").ply(0x06,0x00,0x14)
+      dofile("cc.lua").ply(0x06,0x00,0x17)
       print("set volume")
       workid=2
     end
