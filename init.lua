@@ -7,6 +7,7 @@ dfres=0
 sply = softuart.setup(9600, 6, 5) -- TX d6, RX d5, for DFPlayer
 sply:on("data",10, function(data) -- 10 bytes returns from DFPlayer
   -- remove garbage
+  sp=1
   for i=1,#data do
     if string.byte(data,i)==0x7e then
       sp=i
