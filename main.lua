@@ -37,7 +37,7 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
     if currtime-lasttime>=10 or dfres==1 or gpio.read(7)==1 then
       dfres=0
       lasttime=rtctime.get()
-      dofile("cc.lua").ply(0x06,0x00,0x17)
+      dofile("cc.lua").ply(0x06,0x00,0x14)
       print("set volume")
       workid=2
     end
@@ -65,7 +65,11 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
         lasttime=currtime
         print("play")
         intv=node.random(45,180)
-        if maxsnd>0 then
+        if dfperror==4 or dfperror==8 then
+          dfres=1
+          intv=1
+          workid=0
+        elseif maxsnd>0 then
           print("MP3 Files "..string.format("%d",maxsnd))
           local rfile=node.random(1,maxsnd)
           print("rfile "..string.format("%d",rfile))
