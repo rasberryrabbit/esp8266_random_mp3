@@ -3,6 +3,7 @@ maxfolder=0
 dfperror=0
 dfpmedia=0
 dfres=0
+dfpplay=1
 
 sply = softuart.setup(9600, 6, 5) -- TX d6, RX d5, for DFPlayer
 sply:on("data",10, function(data) -- 10 bytes returns from DFPlayer
@@ -28,6 +29,8 @@ sply:on("data",10, function(data) -- 10 bytes returns from DFPlayer
       elseif string.byte(data,sp+3)==0x3b then
         dfpmedia=0
         maxsnd=0
+      elseif string.byte(data,sp+3)==0x3d then
+        dfpplay=1
       end
     end
   end
