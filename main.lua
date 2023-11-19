@@ -4,6 +4,7 @@ lastid=0
 gpio.mode(4, gpio.OUTPUT)
 gpio.write(4, gpio.HIGH)
 workid=0
+dplast=rtctime.get()
 
 print("main")
 
@@ -13,11 +14,11 @@ print(gpio.read(7))
 
 pulser = gpio.pulse.build( {
   { [4] = gpio.LOW, delay=50000 },
-  { [4] = gpio.HIGH, delay=50000 }
+  { [4] = gpio.HIGH, delay=50000, loop=1, count=2 }
 })
 
 pplay = gpio.pulse.build( {
-  { [4] = gpio.LOW, delay=200000 },
+  { [4] = gpio.LOW, delay=100000 },
   { [4] = gpio.HIGH, delay=50000 }
 })
 
@@ -27,10 +28,12 @@ tick=0
 worker=tmr.create()
 worker:register(1000, tmr.ALARM_AUTO , function(t)
   currtime=rtctime.get()
-  if workid==0 then
+  if workid==0 or currtime-dplast>=259200 then
     dfres=0
     lasttime=rtctime.get()
+    dplast=lasttime
     dofile("cc.lua").ply(0x0c,0x00,0x00)
+    pulser:start(function() end)
     print("reset player")
     workid=1
   elseif workid==1 then
