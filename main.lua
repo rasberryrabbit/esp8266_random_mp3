@@ -58,6 +58,12 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
       print("Start player")
       workid=5
     end
+  elseif workid==7 then
+    if currtime-lasttime>=10 or dfres==1 then
+      dofile("cc.lua").ply(0x11,0x00,0x00)
+      print("disable repeat")
+      workid=5
+    end  
   elseif workid==5 then
     tick=tick+1
     currtime=rtctime.get()
@@ -77,7 +83,8 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
           local rfile=node.random(1,maxsnd)
           print("rfile "..string.format("%d",rfile))
           -- folder nn, file nnn
-          dofile("cc.lua").ply(0x03,0x01,rfile)
+          dofile("cc.lua").ply(0x0F,0x01,rfile)
+          workid=7
         else
           -- query files
           dfres=1
