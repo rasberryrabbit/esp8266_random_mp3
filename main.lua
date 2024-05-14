@@ -13,14 +13,20 @@ print(gpio.read(7))
 -- cc.lua reset uart to 9600
 
 pulser = gpio.pulse.build( {
-  { [4] = gpio.LOW, delay=50000 },
-  { [4] = gpio.HIGH, delay=50000, loop=1, count=2 }
+  { [4] = gpio.LOW, delay=25000 },
+  { [4] = gpio.HIGH, delay=10000 }
 })
 
 pplay = gpio.pulse.build( {
-  { [4] = gpio.LOW, delay=100000 },
-  { [4] = gpio.HIGH, delay=50000 }
+  { [4] = gpio.LOW, delay=50000 },
+  { [4] = gpio.HIGH, delay=25000 }
 })
+
+plreset = gpio.pulse.build( {
+  { [4] = gpio.LOW, delay=25000 },
+  { [4] = gpio.HIGH, delay=10000, loop=1, count=2 }
+})
+
 
 
 tick=0
@@ -33,7 +39,7 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
     lasttime=rtctime.get()
     dplast=lasttime
     dofile("cc.lua").ply(0x0c,0x00,0x00)
-    pulser:start(function() end)
+    plreset:start(function() end)
     print("reset player")
     workid=1
   elseif workid==1 then
@@ -77,7 +83,7 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
         lasttime=currtime
         print("play")
         intv=node.random(45,180)
-        if dfperror==3 or dfperror==8 then
+        if dfperror==4 or dfperror==8 then
           dfres=1
           intv=1
           workid=0
