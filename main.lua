@@ -40,7 +40,7 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
     if currtime-lasttime>=10 or dfres==1 or gpio.read(7)==1 then
       dfres=0
       lasttime=rtctime.get()
-      dofile("cc.lua").ply(0x06,0x00,0x12)
+      dofile("cc.lua").ply(0x06,0x00,0x0F)
       print("set volume")
       workid=2
     end
@@ -69,7 +69,7 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
     currtime=rtctime.get()
     if currtime-lasttime>=intv then
       pplay:start(function() end)
-      if gpio.read(7)==1 then
+      if gpio.read(7)==1 and dfpplay==1 then
         tick=0
         lasttime=currtime
         print("play")
@@ -84,6 +84,7 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
           print("rfile "..string.format("%d",rfile))
           -- folder nn, file nnn
           dofile("cc.lua").ply(0x0F,0x01,rfile)
+          dfpplay=0
           workid=7
         else
           -- query files
