@@ -40,7 +40,7 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
     if currtime-lasttime>=10 or dfres==1 or gpio.read(7)==1 then
       dfres=0
       lasttime=rtctime.get()
-      dofile("cc.lua").ply(0x06,0x00,0x0F)
+      dofile("cc.lua").ply(0x06,0x00,0x0C)
       print("set volume")
       workid=2
     end
@@ -56,6 +56,9 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
   elseif workid==3 then
     if currtime-lasttime>=10 or dfres==1 then
       print("Start player")
+      intv=10
+      print(intv)
+      pulser:start(function() end)
       workid=5
     end
   elseif workid==7 then
@@ -74,7 +77,7 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
         lasttime=currtime
         print("play")
         intv=node.random(45,180)
-        if dfperror==4 or dfperror==8 then
+        if dfperror==3 or dfperror==8 then
           dfres=1
           intv=1
           workid=0
