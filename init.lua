@@ -4,6 +4,8 @@ dfperror=0
 dfpmedia=0
 dfres=0
 dfpplay=1
+retval1=0
+retval2=0
 
 sply = softuart.setup(9600, 6, 5) -- TX d6, RX d5, for DFPlayer
 sply:on("data",10, function(data) -- 10 bytes returns from DFPlayer
@@ -36,6 +38,9 @@ sply:on("data",10, function(data) -- 10 bytes returns from DFPlayer
         dfpplay=1
       elseif string.byte(data,sp+3)==0x3d then
         dfpplay=1
+      else
+        retval1=string.byte(data,sp+5)
+        retval2=string.byte(data,sp+6)
       end
     end
   end
