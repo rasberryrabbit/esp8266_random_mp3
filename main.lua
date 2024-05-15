@@ -18,7 +18,7 @@ pulser = gpio.pulse.build( {
 })
 
 pplay = gpio.pulse.build( {
-  { [4] = gpio.LOW, delay=50000 },
+  { [4] = gpio.LOW, delay=70000 },
   { [4] = gpio.HIGH, delay=25000 }
 })
 
@@ -27,6 +27,11 @@ plreset = gpio.pulse.build( {
   { [4] = gpio.HIGH, delay=10000, loop=1, count=2 }
 })
 
+function stoppulse()
+  plreset:cancel(function(pos, steps, offset, now) end)  
+  pulser:cancel(function(pos, steps, offset, now) end)  
+  pplay:cancel(function(pos, steps, offset, now) end)
+end
 
 
 tick=0
@@ -39,6 +44,7 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
     lasttime=rtctime.get()
     dplast=lasttime
     dofile("cc.lua").ply(0x0c,0x00,0x00)
+    stoppulse()
     plreset:start(function() end)
     print("reset player")
     workid=1
@@ -64,25 +70,44 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
       print("Start player")
       intv=10
       print(intv)
+      stoppulse()
       pulser:start(function() end)
       workid=5
     end
+  -- repeat
   elseif workid==7 then
     if currtime-lasttime>=10 or dfres==1 then
       dofile("cc.lua").ply(0x11,0x00,0x00)
       print("disable repeat")
-      workid=5
-    end  
+      workid=8
+    end
+  -- query state
+  elseif workid==8 then
+    dofile("cc.lua").ply(0x42,0x00,0x00)
+    workid=9
+  elseif workid==9 then
+    if currtime-lasttime>=10 or dfres==1 then
+      if retcmd==0x42 and retval2==0 then
+        workid=5
+        print("Ready")
+      else
+        workid=8
+      end
+    end
+  -- play
   elseif workid==5 then
     tick=tick+1
     currtime=rtctime.get()
     if currtime-lasttime>=intv then
-      pplay:start(function() end)
-      if gpio.read(7)==1 and dfpplay==1 then
+      stoppulse()
+      pulser:start(function() end)
+      lasttime=currtime
+      intv=node.random(45,180)
+      if gpio.read(7)==1 then
+        stoppulse()
+        pplay:start(function() end)
         tick=0
-        lasttime=currtime
         print("play")
-        intv=node.random(45,180)
         if dfperror==4 or dfperror==8 then
           dfres=1
           intv=1
@@ -93,7 +118,6 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
           print("rfile "..string.format("%d",rfile))
           -- folder nn, file nnn
           dofile("cc.lua").ply(0x0F,0x01,rfile)
-          dfpplay=0
           workid=7
         else
           -- query files
@@ -102,7 +126,7 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
           workid=2
         end
         print(intv)
-      elseif tick>120 then
+      elseif tick>5 then
         tick=0
         -- reset dfplayer
         workid=0

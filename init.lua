@@ -4,12 +4,14 @@ dfperror=0
 dfpmedia=0
 dfres=0
 dfpplay=1
+retcmd=0
 retval1=0
 retval2=0
 
 sply = softuart.setup(9600, 6, 5) -- TX d6, RX d5, for DFPlayer
 sply:on("data",10, function(data) -- 10 bytes returns from DFPlayer
   -- remove garbage
+  retcmd=0
   sp=1
   for i=1,#data do
     if string.byte(data,i)==0x7e then
@@ -18,38 +20,40 @@ sply:on("data",10, function(data) -- 10 bytes returns from DFPlayer
     end
   end
   if string.byte(data,sp)==0x7e and string.byte(data,sp+1)==0xff then
-    if string.byte(data,sp+3)==0x40 then
-      dfperror=string.byte(data,sp+6)
+    retcmd=string.byte(data,sp+3)
+    retval1=string.byte(data,sp+5)
+    retval2=string.byte(data,sp+6)  
+    if retcmd==0x40 then
+      dfperror=retval2
       dfpplay=1
     else
       dfperror=0
-      if string.byte(data,sp+3)==0x4E then
-        maxsnd=string.byte(data,sp+6)
-      elseif string.byte(data,sp+3)==0x4F then
-        maxfolder=string.byte(data,sp+6)
-      elseif string.byte(data,sp+3)==0x3f then
+      if retcmd==0x4E then
+        maxsnd=retval2
+      elseif retcmd==0x4F then
+        maxfolder=retval2
+      elseif retcmd==0x3f then
         dfpmedia=1
-      elseif string.byte(data,sp+3)==0x3b then
+      elseif retcmd==0x3b then
         dfpmedia=0
         maxsnd=0
         dfpplay=1
       -- play finished
-      elseif string.byte(data,sp+3)==0x3c then
+      elseif retcmd==0x3c then
         dfpplay=1
-      elseif string.byte(data,sp+3)==0x3d then
+      elseif retcmd==0x3d then
         dfpplay=1
-      else
-        retval1=string.byte(data,sp+5)
-        retval2=string.byte(data,sp+6)
       end
     end
   end
   dfres=1
-  local rs=""
-  for i=1,#data do
-    rs=rs .. string.format("%02x",string.byte(data,i)) .. " "
+  if retcmd~=0x42 then
+    local rs=""
+    for i=1,#data do
+      rs=rs .. string.format("%02x",string.byte(data,i)) .. " "
+    end
+    print(rs)
   end
-  print(rs)
 end)
 
 local scnt=0
