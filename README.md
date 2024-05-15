@@ -13,4 +13,5 @@ SPK-(6)
 SPK+(8)
 ```
 
-It plays 01 folder and 11 mp3 files randomly.  
+It plays 01 folder and 255 mp3 files randomly.  
+01/001.mp3...01/255.mp3  
