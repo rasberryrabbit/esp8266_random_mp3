@@ -92,6 +92,11 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
         print("Ready")
       else
         workid=8
+        if dfperror==4 or dfperror==8 then
+          dfres=1
+          intv=1
+          workid=0
+        end  
       end
     end
   -- play
