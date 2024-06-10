@@ -33,6 +33,18 @@ function stoppulse()
   pplay:cancel(function(pos, steps, offset, now) end)
 end
 
+function ReadConfig()
+  fd=file.open("config.txt",'r')
+  if fd~=nil then
+    vol=fd:readline()
+    fd:close()
+    return vol
+  else
+    return 15
+  end
+end
+
+dfvol=ReadConfig()
 
 tick=0
 
@@ -52,7 +64,7 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
     if currtime-lasttime>=10 or dfres==1 or gpio.read(7)==1 then
       dfres=0
       lasttime=rtctime.get()
-      dofile("cc.lua").ply(0x06,0x00,0x0E)
+      dofile("cc.lua").ply(0x06,0x00,dfvol)
       print("set volume")
       workid=2
     end
