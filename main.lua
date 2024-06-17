@@ -51,7 +51,7 @@ tick=0
 worker=tmr.create()
 worker:register(1000, tmr.ALARM_AUTO , function(t)
   currtime=rtctime.get()
-  if workid==0 or currtime-dplast>=259200 then
+  if workid==0 or currtime-dplast>=172800 then
     dfres=0
     lasttime=rtctime.get()
     dplast=lasttime
@@ -93,25 +93,14 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
       print("disable repeat")
       workid=8
     end
-  -- query state
+  -- wait playback finished
   elseif workid==8 then
-    dofile("cc.lua").ply(0x42,0x00,0x00)
-    workid=9
-  elseif workid==9 then
-    if currtime-lasttime>=10 or dfres==1 then
-      if retcmd==0x42 and retval2==0 then
-        workid=5
-        print("Ready")
-      else
-        workid=8
-        if dfperror==4 or dfperror==8 then
-          dfres=1
-          intv=1
-          workid=0
-        end  
-      end
+    if retcmd==0x3d or retcmd==0x3c then
+      workid=5
+      stoppulse()
+      pulser:start(function() end)
+      print("ready")
     end
-  -- play
   elseif workid==5 then
     tick=tick+1
     currtime=rtctime.get()
@@ -124,19 +113,20 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
         stoppulse()
         pplay:start(function() end)
         tick=0
-        print("play")
         if dfperror==4 or dfperror==8 then
           dfres=1
           intv=1
           workid=0
-        elseif maxsnd>0 then
+        end
+        print("play")
+        if maxsnd>0 then
           print("MP3 Files "..string.format("%d",maxsnd))
           local rfile=node.random(1,maxsnd)
           print("rfile "..string.format("%d",rfile))
           -- folder nn, file nnn
           dofile("cc.lua").ply(0x0F,0x01,rfile)
           workid=7
-        else
+        elseif maxsnd==0 then
           -- query files
           dfres=1
           intv=1
