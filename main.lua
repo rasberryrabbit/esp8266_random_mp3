@@ -109,6 +109,7 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
       pulser:start(function() end)
       lasttime=currtime
       intv=node.random(45,180)
+      print(intv)
       if gpio.read(7)==1 then
         stoppulse()
         pplay:start(function() end)
@@ -117,22 +118,23 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
           dfres=1
           intv=1
           workid=0
+        else
+          print("play")
+          retcmd=0x00
+          if maxsnd>0 then
+            print("MP3 Files "..string.format("%d",maxsnd))
+            local rfile=node.random(1,maxsnd)
+            print("rfile "..string.format("%d",rfile))
+            -- folder nn, file nnn
+            dofile("cc.lua").ply(0x0F,0x01,rfile)
+            workid=7
+          elseif maxsnd==0 then
+            -- query files
+            dfres=1
+            intv=1
+            workid=2
+          end
         end
-        print("play")
-        if maxsnd>0 then
-          print("MP3 Files "..string.format("%d",maxsnd))
-          local rfile=node.random(1,maxsnd)
-          print("rfile "..string.format("%d",rfile))
-          -- folder nn, file nnn
-          dofile("cc.lua").ply(0x0F,0x01,rfile)
-          workid=7
-        elseif maxsnd==0 then
-          -- query files
-          dfres=1
-          intv=1
-          workid=2
-        end
-        print(intv)
       elseif tick>5 then
         tick=0
         -- reset dfplayer
