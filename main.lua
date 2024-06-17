@@ -100,6 +100,7 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
       stoppulse()
       pulser:start(function() end)
       intv=node.random(45,180)
+      lasttime=rtctime.get()
       print(intv)
     end
   elseif workid==5 then
@@ -108,7 +109,6 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
     if currtime-lasttime>=intv then
       stoppulse()
       pulser:start(function() end)
-      lasttime=currtime
       if gpio.read(7)==1 then
         stoppulse()
         pplay:start(function() end)
