@@ -99,7 +99,8 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
       workid=5
       stoppulse()
       pulser:start(function() end)
-      print("ready")
+      intv=node.random(45,180)
+      print(intv)
     end
   elseif workid==5 then
     tick=tick+1
@@ -108,8 +109,6 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
       stoppulse()
       pulser:start(function() end)
       lasttime=currtime
-      intv=node.random(45,180)
-      print(intv)
       if gpio.read(7)==1 then
         stoppulse()
         pplay:start(function() end)
