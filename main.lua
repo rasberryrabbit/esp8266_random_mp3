@@ -58,14 +58,14 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
     dofile("cc.lua").ply(0x0c,0x00,0x00)
     stoppulse()
     plreset:start(function() end)
-    print("reset player")
+    print("[0]reset player")
     workid=1
   elseif workid==1 then
     if currtime-lasttime>=10 or dfres==1 or gpio.read(7)==1 then
       dfres=0
       lasttime=rtctime.get()
       dofile("cc.lua").ply(0x06,0x00,dfvol)
-      print("set volume")
+      print("[1]set volume")
       workid=2
     end
   elseif workid==2 then
@@ -74,33 +74,32 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
       dfpmedia=0
       lasttime=rtctime.get()
       dofile("cc.lua").ply(0x4e,0x00,0x01)
-      print("query tracks")
+      print("[2]query tracks")
       workid=3
     end
   elseif workid==3 then
     if currtime-lasttime>=10 or dfres==1 then
-      print("Start player")
+      print("[3]Start player")
       intv=10
       print(intv)
       stoppulse()
       pulser:start(function() end)
-      workid=5
+      workid=7
     end
   -- repeat
   elseif workid==7 then
-    if currtime-lasttime>=10 or dfres==1 then
+    if currtime-lasttime>=1 or dfres==1 then
       dofile("cc.lua").ply(0x11,0x00,0x00)
-      print("disable repeat")
-      workid=8
+      print("[7]disable repeat")
+      workid=5
     end
   -- wait playback finished
   elseif workid==8 then
-    if retcmd==0x3d or retcmd==0x3c then
-      workid=5
-      stoppulse()
-      pulser:start(function() end)
+    if gpio.read(7)==1 then
+      workid=7
       intv=node.random(45,180)
       lasttime=rtctime.get()
+      print("[8]finished")
       print(intv)
     end
   elseif workid==5 then
@@ -118,15 +117,14 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
           intv=1
           workid=0
         else
-          print("play")
-          retcmd=0x00
+          print("[5]play")
           if maxsnd>0 then
             print("MP3 Files "..string.format("%d",maxsnd))
             local rfile=node.random(1,maxsnd)
             print("rfile "..string.format("%d",rfile))
             -- folder nn, file nnn
             dofile("cc.lua").ply(0x0F,0x01,rfile)
-            workid=7
+            workid=8
           elseif maxsnd==0 then
             -- query files
             dfres=1
@@ -134,10 +132,6 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
             workid=2
           end
         end
-      elseif tick>5 then
-        tick=0
-        -- reset dfplayer
-        workid=0
       end
     else
       if dfpmedia==1 then
