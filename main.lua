@@ -38,13 +38,14 @@ function ReadConfig()
   if fd~=nil then
     vol=fd:readline()
     fd:close()
-    return vol
+    return tonumber(vol)
   else
     return 15
   end
 end
 
 dfvol=ReadConfig()
+print(dfvol)
 
 tick=0
 
@@ -97,7 +98,7 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
   elseif workid==8 then
     if gpio.read(7)==1 then
       workid=7
-      intv=node.random(45,180)
+      intv=node.random(30,180)
       lasttime=rtctime.get()
       print("[8]finished")
       print(intv)
