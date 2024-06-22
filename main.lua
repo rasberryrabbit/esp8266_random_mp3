@@ -40,7 +40,7 @@ function ReadConfig()
     fd:close()
     return tonumber(vol)
   else
-    return 15
+    return 11
   end
 end
 
