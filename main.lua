@@ -52,15 +52,19 @@ tick=0
 worker=tmr.create()
 worker:register(1000, tmr.ALARM_AUTO , function(t)
   currtime=rtctime.get()
-  if workid==0 or currtime-dplast>=172800 then
+  if workid==10 then
+    gpio.write(4, gpio.HIGH)
+    workid=1
+  elseif workid==0 or currtime-dplast>=172800 then
     dfres=0
     lasttime=rtctime.get()
     dplast=lasttime
     dofile("cc.lua").ply(0x0c,0x00,0x00)
+    gpio.write(4, gpio.LOW)    
     stoppulse()
     plreset:start(function() end)
     print("[0]reset player")
-    workid=1
+    workid=10
   elseif workid==1 then
     if currtime-lasttime>=10 or dfres==1 or gpio.read(7)==1 then
       dfres=0
