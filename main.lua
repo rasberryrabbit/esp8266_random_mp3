@@ -79,7 +79,7 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
       workid=3
     end
   elseif workid==3 then
-    if currtime-lasttime>=10 or dfres==1 then
+    if currtime-lasttime>=10 or dfres==1 or gpio.read(7)==1 then
       print("[3]Start player")
       intv=10
       print(intv)
@@ -89,7 +89,7 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
     end
   -- repeat
   elseif workid==7 then
-    if currtime-lasttime>=1 or dfres==1 then
+    if currtime-lasttime>=1 or gpio.read(7)==1 then
       dofile("cc.lua").ply(0x11,0x00,0x00)
       print("[7]disable repeat")
       workid=5
@@ -98,7 +98,7 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
   elseif workid==8 then
     if gpio.read(7)==1 then
       workid=7
-      intv=node.random(30,180)
+      intv=node.random(30,120)
       lasttime=rtctime.get()
       print("[8]finished")
       print(intv)
