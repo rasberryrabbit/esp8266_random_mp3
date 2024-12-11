@@ -45,7 +45,6 @@ function ReadConfig()
 end
 
 dfvol=ReadConfig()
-print(dfvol)
 
 tick=0
 
@@ -70,7 +69,7 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
       dfres=0
       lasttime=rtctime.get()
       dofile("cc.lua").ply(0x06,0x00,dfvol)
-      print("[1]set volume")
+      print("[1]set volume"..dfvol)
       workid=2
     end
   elseif workid==2 then
@@ -84,6 +83,7 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
     end
   elseif workid==3 then
     if currtime-lasttime>=10 or dfres==1 or gpio.read(7)==1 then
+      print("MP3 Files "..string.format("%d",maxsnd))
       print("[3]Start player")
       intv=10
       print(intv)
@@ -124,9 +124,8 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
         else
           print("[5]play")
           if maxsnd>0 then
-            print("MP3 Files "..string.format("%d",maxsnd))
             local rfile=node.random(1,maxsnd)
-            print("rfile "..string.format("%d",rfile))
+            print("Track "..string.format("%d",rfile))
             -- folder nn, file nnn
             dofile("cc.lua").ply(0x0F,0x01,rfile)
             workid=8
