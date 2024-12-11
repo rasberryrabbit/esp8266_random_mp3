@@ -102,7 +102,7 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
   elseif workid==8 then
     if gpio.read(7)==1 then
       workid=7
-      intv=node.random(30,120)
+      intv=node.random(50,120)
       lasttime=rtctime.get()
       print("[8]finished")
       print(intv)
