@@ -51,10 +51,7 @@ tick=0
 worker=tmr.create()
 worker:register(1000, tmr.ALARM_AUTO , function(t)
   currtime=rtctime.get()
-  if workid==10 then
-    gpio.write(4, gpio.HIGH)
-    workid=1
-  elseif workid==0 or currtime-dplast>=172800 then
+  if workid==0 or currtime-dplast>=172800 then
     dfres=0
     lasttime=rtctime.get()
     dplast=lasttime
@@ -62,41 +59,46 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
     gpio.write(4, gpio.LOW)    
     stoppulse()
     plreset:start(function() end)
-    print("[0]reset player")
     workid=10
-  elseif workid==1 then
-    if currtime-lasttime>=10 or dfres==1 or gpio.read(7)==1 then
-      dfres=0
-      lasttime=rtctime.get()
-      dofile("cc.lua").ply(0x06,0x00,dfvol)
-      print("[1]set volume"..dfvol)
-      workid=2
-    end
+    print("[0]reset player")
+  elseif workid==10 then
+    gpio.write(4, gpio.HIGH)
+    workid=2
+    print("[10]Turn on Player")
   elseif workid==2 then
     if currtime-lasttime>=10 or dfres==1 or gpio.read(7)==1 then
       dfres=0
       dfpmedia=0
       lasttime=rtctime.get()
       dofile("cc.lua").ply(0x4e,0x00,0x01)
-      print("[2]query tracks")
       workid=3
+      print("[2]query tracks")
     end
   elseif workid==3 then
     if currtime-lasttime>=10 or dfres==1 or gpio.read(7)==1 then
       print("MP3 Files "..string.format("%d",maxsnd))
-      print("[3]Start player")
       intv=10
       print(intv)
       stoppulse()
       pulser:start(function() end)
       workid=7
+      print("[3]Start player")
     end
   -- repeat
   elseif workid==7 then
     if currtime-lasttime>=1 or gpio.read(7)==1 then
       dofile("cc.lua").ply(0x11,0x00,0x00)
+      workid=1
       print("[7]disable repeat")
+    end
+  elseif workid==1 then
+    if currtime-lasttime>=10 or dfres==1 or gpio.read(7)==1 then
+      dfres=0
+      lasttime=rtctime.get()
+      svol=string.format("0x%x",dfvol)
+      dofile("cc.lua").ply(0x06,0x00,tonumber(dfvol))
       workid=5
+      print("[1]set volume "..dfvol)
     end
   -- wait playback finished
   elseif workid==8 then
@@ -105,7 +107,7 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
       intv=node.random(50,120)
       lasttime=rtctime.get()
       print("[8]finished")
-      print(intv)
+      print("Wait for "..intv)
     end
   elseif workid==5 then
     tick=tick+1
@@ -122,13 +124,14 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
           intv=1
           workid=0
         else
-          print("[5]play")
           if maxsnd>0 then
             local rfile=node.random(1,maxsnd)
-            print("Track "..string.format("%d",rfile))
-            -- folder nn, file nnn
-            dofile("cc.lua").ply(0x0F,0x01,rfile)
+            -- folder 1 = 0x10, file nnnn, 15 folders 3000+ files
+            byte1 = string.format("0x%02x",0x10 + rfile / 256)
+            byte2 = string.format("0x%02x",rfile % 256)
+            dofile("cc.lua").ply(0x14,tonumber(byte1),tonumber(byte2))
             workid=8
+            print("[5]play track "..string.format("%s %s",byte1,byte2))
           elseif maxsnd==0 then
             -- query files
             dfres=1
@@ -141,7 +144,7 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
       if dfpmedia==1 then
         dfres=1
         workid=2
-        print("Plugin")
+        print("Plug in")
       end
       --pulser:start(function() end)
     end
