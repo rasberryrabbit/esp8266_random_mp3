@@ -67,7 +67,7 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
     workid=12
     print("[10]Turn on Player")
   elseif workid==12 then
-    workid=1
+    workid=2
     print(gpio.read(7))
   elseif workid==2 then
     if currtime-lasttime>=10 or gpio.read(7)==1 then
@@ -93,7 +93,7 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
     if currtime-lasttime>=1 or gpio.read(7)==1 then
       dfres=0
       dofile("cc.lua").ply(0x11,0x00,0x00)
-      workid=5
+      workid=1
       print("[7]disable repeat")
     end
   elseif workid==1 then
@@ -102,7 +102,7 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
       lasttime=rtctime.get()
       svol=string.format("0x%x",dfvol)
       dofile("cc.lua").ply(0x06,0x00,tonumber(dfvol))
-      workid=2
+      workid=5
       print("[1]set volume "..dfvol)
     end
   -- wait playback finished
