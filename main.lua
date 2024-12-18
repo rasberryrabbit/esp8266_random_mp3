@@ -142,13 +142,16 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
         end
       end
     else
-      if dfpmedia==1 then
+      if dfpmedia==0 then
+        dfpmedia=1
         dfres=1
         workid=2
         print("Plug in")
       end
-      stoppulse()
-      pulser:start(function() end)
+      if tick % 5==0 then
+        stoppulse()
+        pulser:start(function() end)
+      end
     end
   end
 end)
