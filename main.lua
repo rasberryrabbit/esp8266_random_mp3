@@ -47,6 +47,7 @@ end
 dfvol=ReadConfig()
 
 tick=0
+readyid=0
 
 worker=tmr.create()
 worker:register(1000, tmr.ALARM_AUTO , function(t)
@@ -146,7 +147,8 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
         workid=2
         print("Plug in")
       end
-      --pulser:start(function() end)
+      stoppulse()
+      pulser:start(function() end)
     end
   end
 end)
