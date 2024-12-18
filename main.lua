@@ -69,7 +69,7 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
   elseif workid==2 then
     if currtime-lasttime>=10 or dfres==1 or gpio.read(7)==1 then
       dfres=0
-      dfpmedia=0
+      dfpmedia=1
       lasttime=rtctime.get()
       dofile("cc.lua").ply(0x4e,0x00,0x01)
       workid=3
@@ -143,7 +143,6 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
       end
     else
       if dfpmedia==0 then
-        dfpmedia=1
         dfres=1
         workid=2
         print("Plug in")
