@@ -64,12 +64,15 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
     print("[0]reset player")
   elseif workid==10 then
     gpio.write(4, gpio.HIGH)
-    workid=2
+    workid=12
     print("[10]Turn on Player")
+  elseif workid==12 then
+    workid=1
+    print(gpio.read(7))
   elseif workid==2 then
-    if currtime-lasttime>=10 or dfres==1 or gpio.read(7)==1 then
+    if currtime-lasttime>=10 or gpio.read(7)==1 then
       dfres=0
-      dfpmedia=1
+      dfpmedia=0
       lasttime=rtctime.get()
       dofile("cc.lua").ply(0x4e,0x00,0x01)
       workid=3
@@ -88,17 +91,18 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
   -- repeat
   elseif workid==7 then
     if currtime-lasttime>=1 or gpio.read(7)==1 then
+      dfres=0
       dofile("cc.lua").ply(0x11,0x00,0x00)
-      workid=1
+      workid=5
       print("[7]disable repeat")
     end
   elseif workid==1 then
-    if currtime-lasttime>=10 or dfres==1 or gpio.read(7)==1 then
+    if currtime-lasttime>=10 or gpio.read(7)==1 then
       dfres=0
       lasttime=rtctime.get()
       svol=string.format("0x%x",dfvol)
       dofile("cc.lua").ply(0x06,0x00,tonumber(dfvol))
-      workid=5
+      workid=2
       print("[1]set volume "..dfvol)
     end
   -- wait playback finished
@@ -126,6 +130,7 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
           workid=0
         else
           if maxsnd>0 then
+            dfres=0
             local rfile=node.random(1,maxsnd)
             -- folder 1 = 0x10, file nnnn, 15 folders 3000+ files
             byte1 = string.format("0x%02x",0x10 + rfile / 256)
@@ -142,9 +147,10 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
         end
       end
     else
-      if dfpmedia==0 then
-        dfres=1
-        workid=2
+      if dfpmedia==1 and gpio.read(7)==1 then
+        --dfres=1
+        --workid=2
+        dfpmedia=0
         print("Plug in")
       end
       if tick % 5==0 then
