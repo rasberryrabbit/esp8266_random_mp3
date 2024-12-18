@@ -32,6 +32,8 @@ sply:on("data",10, function(data) -- 10 bytes returns from DFPlayer
         maxsnd=retval2
       elseif retcmd==0x4F then
         maxfolder=retval2
+      elseif retcmd==0x3f then
+        dfpmedia=1
       elseif retcmd==0x3b then
         dfpmedia=0
         maxsnd=0
