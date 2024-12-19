@@ -2,7 +2,8 @@ lasttime=rtctime.get()
 intv=node.random(45,180)
 lastid=0
 gpio.mode(4, gpio.OUTPUT)
-gpio.write(4, gpio.HIGH)
+gpio.mode(8, gpio.OUTPUT)
+gpio.write(8, gpio.HIGH)
 workid=0
 dplast=rtctime.get()
 
@@ -13,17 +14,17 @@ print(gpio.read(7))
 -- cc.lua reset uart to 9600
 
 pulser = gpio.pulse.build( {
-  { [4] = gpio.LOW, delay=25000 },
+  { [4] = gpio.LOW, delay=10000 },
   { [4] = gpio.HIGH, delay=10000 }
 })
 
 pplay = gpio.pulse.build( {
-  { [4] = gpio.LOW, delay=70000 },
-  { [4] = gpio.HIGH, delay=25000 }
+  { [4] = gpio.LOW, delay=20000 },
+  { [4] = gpio.HIGH, delay=20000 }
 })
 
 plreset = gpio.pulse.build( {
-  { [4] = gpio.LOW, delay=25000 },
+  { [4] = gpio.LOW, delay=10000 },
   { [4] = gpio.HIGH, delay=10000, loop=1, count=2 }
 })
 
@@ -57,13 +58,13 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
     lasttime=rtctime.get()
     dplast=lasttime
     dofile("cc.lua").ply(0x0c,0x00,0x00)
-    gpio.write(4, gpio.LOW)    
+    gpio.write(8, gpio.LOW)    
     stoppulse()
     plreset:start(function() end)
     workid=10
     print("[0]reset player")
   elseif workid==10 then
-    gpio.write(4, gpio.HIGH)
+    gpio.write(8, gpio.HIGH)
     workid=12
     print("[10]Turn on Player")
   elseif workid==12 then
@@ -152,7 +153,7 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
         workid=2
         print("Plug in")
       end
-      if tick % 5==0 then
+      if tick % 10==0 then
         stoppulse()
         pulser:start(function() end)
       end
