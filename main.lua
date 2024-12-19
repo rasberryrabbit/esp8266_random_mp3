@@ -149,8 +149,7 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
     else
       if dfpmedia==1 and gpio.read(7)==1 then
         --dfres=1
-        --workid=2
-        dfpmedia=0
+        workid=2
         print("Plug in")
       end
       if tick % 5==0 then
