@@ -1,3 +1,4 @@
+
 lasttime=rtctime.get()
 intv=node.random(45,180)
 lastid=0
@@ -53,7 +54,9 @@ readyid=0
 worker=tmr.create()
 worker:register(1000, tmr.ALARM_AUTO , function(t)
   currtime=rtctime.get()
-  if workid==0 or currtime-dplast>=172800 then
+  if currtime-dplast>=259200 then
+    node.restart()
+  elseif workid==0 then
     dfres=0
     lasttime=rtctime.get()
     dplast=lasttime
@@ -69,6 +72,7 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
     print("[10]Turn on Player")
   elseif workid==12 then
     workid=2
+    dfpmedia=0    
     print(gpio.read(7))
   elseif workid==2 then
     if currtime-lasttime>=10 or gpio.read(7)==1 then
@@ -86,15 +90,15 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
       print(intv)
       stoppulse()
       pulser:start(function() end)
-      workid=7
+      workid=1
       print("[3]Start player")
     end
   -- repeat
   elseif workid==7 then
     if currtime-lasttime>=1 or gpio.read(7)==1 then
       dfres=0
-      dofile("cc.lua").ply(0x11,0x00,0x00)
-      workid=1
+      dofile("cc.lua").ply(0x19,0x00,0x01)
+      workid=5
       print("[7]disable repeat")
     end
   elseif workid==1 then
@@ -103,7 +107,7 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
       lasttime=rtctime.get()
       svol=string.format("0x%x",dfvol)
       dofile("cc.lua").ply(0x06,0x00,tonumber(dfvol))
-      workid=5
+      workid=7
       print("[1]set volume "..dfvol)
     end
   -- wait playback finished
