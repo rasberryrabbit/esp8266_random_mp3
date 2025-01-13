@@ -1,3 +1,10 @@
+wifi.setmode(wifi.NULLMODE)
+
+_,boot_reason = node.bootreason()
+if boot_reason==4 then
+  print("Restart")
+end
+
 maxsnd=0
 maxfolder=0
 dfperror=0
@@ -101,8 +108,6 @@ delaytmr:register(1000, tmr.ALARM_AUTO, function()
 end)
 
 delaytmr:start() ]]--
-wifi.setmode(wifi.NULLMODE)
-
 starttmr:start()
 
 print("timer: delaytmr")
