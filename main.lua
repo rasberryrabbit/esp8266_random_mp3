@@ -55,7 +55,7 @@ worker=tmr.create()
 worker:register(1000, tmr.ALARM_AUTO , function(t)
   currtime=rtctime.get()
   if currtime-dplast>=259200 then
-    node.restart()
+    workid=0
   elseif workid==0 then
     dfres=0
     lasttime=rtctime.get()
@@ -65,8 +65,9 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
     stoppulse()
     plreset:start(function() end)
     workid=10
+    lasttime=currtime
     print("[0]reset player")
-  elseif workid==10 then
+  elseif workid==10 and currtime-lasttime>=3 then
     gpio.write(8, gpio.HIGH)
     workid=12
     print("[10]Turn on Player")
