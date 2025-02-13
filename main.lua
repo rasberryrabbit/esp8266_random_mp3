@@ -54,7 +54,7 @@ readyid=0
 worker=tmr.create()
 worker:register(1000, tmr.ALARM_AUTO , function(t)
   currtime=rtctime.get()
-  if currtime-dplast>=259200 then
+  if currtime-dplast>=864000 and gpio.read(7)==1 then
     workid=0
   elseif workid==0 then
     dfres=0
@@ -156,6 +156,7 @@ worker:register(1000, tmr.ALARM_AUTO , function(t)
       if dfpmedia==1 and gpio.read(7)==1 then
         --dfres=1
         workid=2
+        --dfpmedia=0
         print("Plug in")
       end
       if tick % 10==0 then
