@@ -54,9 +54,9 @@ readyid=0
 worker=tmr.create()
 worker:register(1000, tmr.ALARM_AUTO , function(t)
   currtime=rtctime.get()
-  if currtime-dplast>=864000 and gpio.read(7)==1 then
-    workid=0
-  elseif workid==0 then
+  --if currtime-dplast>=864000 and gpio.read(7)==1 then
+  --  workid=0
+  if workid==0 then
     dfres=0
     lasttime=rtctime.get()
     dplast=lasttime
