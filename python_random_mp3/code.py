@@ -48,7 +48,7 @@ def dfp_write_data(cmd, dataL=0, dataH=0):
       time.sleep(0.200)
     elif cmd == 0x0C:                      # reset
       time.sleep(1.000)
-    elif cmd in [0x47,0x48,0x49,0x4E,0x06]:     # query files
+    elif cmd in [0x47,0x48,0x49,0x4E]:     # query files
       time.sleep(0.500)
     else:
       time.sleep(0.100)            # other commands
@@ -74,7 +74,7 @@ config.read('config.txt')
 try:
     vol=int(config.option['vol'])
 except:
-    vol=5
+    vol=8
     pass
 
 global nfiles
@@ -117,8 +117,11 @@ while True:
         if lastdelay<=timeval:
             try:
                 if stby.value:
-                    # prevent repeat
                     led[0]=(50,0,0)
+                    # volume
+                    dfp_write_data(cmd=0x06,dataL=vol)
+                    dfp_read_dummy()
+                    # prevent repeat
                     dfp_write_data(cmd=0x19,dataL=0x01)
                     dfp_read_dummy()
                     # get new MP3 track
@@ -128,8 +131,8 @@ while True:
                     lastplay=nplay
                     # play MP3 track
                     dfp_write_data(cmd=0x14,dataL=nplay & 0xff,dataH=0x10+int(nplay/256))
-                    dfp_read_dummy()
                     led[0]=(0,0,0)
+                    dfp_read_dummy()
                     print("play %d" % nplay)
             except Exception as e:
                 print(e)
