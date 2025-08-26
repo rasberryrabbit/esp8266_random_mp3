@@ -4,6 +4,8 @@ import digitalio
 import time
 import neopixel
 import random, struct, configreader
+import asyncio
+
 #from DFPlayer import DFPlayer
 from adafruit_ticks import ticks_ms, ticks_add, ticks_less
 
@@ -54,12 +56,25 @@ def dfp_write_data(cmd, dataL=0, dataH=0):
       time.sleep(0.100)            # other commands
       
 def dfp_read_data():
+    outtime = ticks_add(ticks_ms(), 1000)
+    while uart1.in_waiting<10:
+        time.sleep(0.03)
+        if not ticks_less(ticks_ms(), outtime):
+            return None
+
     buf=uart1.read(10)
     if buf:
         return struct.unpack('>h',buf[5:7])[0]
-    return None
+    else:
+        return None
 
 def dfp_read_dummy():
+    outtime = ticks_add(ticks_ms(), 1000)
+    while uart1.in_waiting<10:
+        time.sleep(0.03)
+        if not ticks_less(ticks_ms(), outtime):
+            return
+
     buf=uart1.read(10)
     if buf:
         print(buf.hex())
@@ -98,7 +113,7 @@ print(stby.value)
 dfp_write_data(cmd=0x43)
 vol=dfp_read_data()
 print("volume %d" %vol)
-   
+  
 def get_delay():
     return random.randrange(180-45)+45
 
@@ -110,47 +125,75 @@ lastplay=0
 lastdelay=get_delay()
 print("delay %d" % lastdelay)
 
-while True:
-    # interval proc
-    if not ticks_less(ticks_ms(), deadline):
-        timeval+=1
-        if lastdelay<=timeval:
-            try:
-                if stby.value:
-                    led[0]=(50,0,0)
-                    # volume
-                    dfp_write_data(cmd=0x06,dataL=vol)
-                    dfp_read_dummy()
-                    # prevent repeat
-                    dfp_write_data(cmd=0x19,dataL=0x01)
-                    dfp_read_dummy()
-                    # get new MP3 track
-                    nplay=lastplay
-                    while lastplay==nplay:
-                        nplay=random.randrange(nfiles)+1
-                    lastplay=nplay
-                    # play MP3 track
-                    dfp_write_data(cmd=0x14,dataL=nplay & 0xff,dataH=0x10+int(nplay/256))
+async def main_loop():
+    global deadline, timeval, lastdelay, lastplay, led, stby, nfiles, userpin, vol
+    while True:
+        # interval proc
+        if not ticks_less(ticks_ms(), deadline):
+            timeval+=1
+            if lastdelay<=timeval:
+                try:
+                    if stby.value:
+                        led[0]=(50,0,0)
+                        # volume
+                        dfp_write_data(cmd=0x06,dataL=vol)
+                        dfp_read_dummy()
+                        # prevent repeat
+                        dfp_write_data(cmd=0x19,dataL=0x01)
+                        dfp_read_dummy()
+                        # get new MP3 track
+                        nplay=lastplay
+                        while lastplay==nplay:
+                            nplay=random.randrange(nfiles)+1
+                        lastplay=nplay
+                        # play MP3 track
+                        dfp_write_data(cmd=0x14,dataL=nplay & 0xff,dataH=0x10+int(nplay/256))
+                        led[0]=(0,0,0)
+                        dfp_read_dummy()
+                        print("play %d" % nplay)
+                except Exception as e:
+                    print(e)
+                # reset timer
+                timeval=0
+                lastdelay=get_delay()
+                print("lastdelay %d" % lastdelay)
+            else:
+                # blink every 10 seconds
+                if timeval % 10==0:
+                    led[0]=(0,50,0)
+                    time.sleep(0.02)
                     led[0]=(0,0,0)
-                    dfp_read_dummy()
-                    print("play %d" % nplay)
-            except Exception as e:
-                print(e)
-            # reset timer
-            timeval=0
-            lastdelay=get_delay()
-            print("lastdelay %d" % lastdelay)
-        else:
-            # blink every 10 seconds
-            if timeval % 10==0:
-                led[0]=(0,50,0)
-                time.sleep(0.02)
-                led[0]=(0,0,0)
-        #dfp_read_dummy()
-        # 1000ms
-        deadline=ticks_add(ticks_ms(), 1000)                
-    # user stop
-    if not userpin.value:
-        break
+            #dfp_read_dummy()
+            # 1000ms
+            deadline=ticks_add(ticks_ms(), 1000)                
+        # user stop
+        if not userpin.value:
+            break
+        await asyncio.sleep(0.01)
 
+ucmd=0
+udata=0
+
+async def uart_reader(uart):
+    global ucmd, udata
+    while True:
+        if uart.in_waiting>=10:
+            buf=uart.read(10)
+            if buf:
+                if buf[0]==0x7e:
+                    ucmd=buf[3]
+                    udata=struct.unpack('>h',buf[5:7])[0]
+                    print(hex(ucmd), hex(udata))
+                else:
+                    led[0]=(0,0,50)
+                    time.sleep(0.02)
+                    led[0]=(0,0,0)
+        await asyncio.sleep(0.01)
+
+async def main():
+    t1=asyncio.create_task(uart_reader(uart1))
+    t2=asyncio.create_task(main_loop())
+    await asyncio.gather(t1, t2)
+    
+asyncio.run(main())
 
