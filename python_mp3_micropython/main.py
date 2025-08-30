@@ -4,6 +4,7 @@ from machine import Timer
 import neopixel
 import micropython
 import time, random, struct, configreader
+import asyncio
 
 micropython.alloc_emergency_exception_buf(100)
 
@@ -25,14 +26,19 @@ else:
 
 # turn off led, VCC GND
 lpin=Pin(25, Pin.OUT)
-lpin.value(0)
+lpin.off()
 
 
 # init uart
 ucmd=0
 udata=0
 ubuf=bytearray(64)
-dfrecv=1
+
+uartev=asyncio.Event()
+uartev.set()
+
+dfpreset=asyncio.Event()
+dfpreset.clear()
 
 uart1=UART(1, 9600)
 
@@ -41,26 +47,58 @@ def uart_event(uart):
         micropython.schedule(uart_process,uart)
         
 def uart_process(data):
-    global dfrecv
-    if dfrecv==1:
+    global uartev, dfpreset
+    if uartev.is_set():
         nread=uart1.readinto(ubuf)
+        # try to fix serial data alignment
+        ipos=0
+        for i in range(0,10):
+            if ubuf[i]==0x7e:
+                ipos=i
+                break
+        if ipos>0 and uart1.any()>=ipos:
+            dummy=uart1.read(ipos)
+        ucmd=ubuf[ipos+3]
+        # error
+        if ucmd==0x40:
+            udata=struct.unpack('>h',buf[ipos+5:ipos+7])[0]
+            if udata==0x03:
+                if led:
+                    led[0]=(50,50,0)
+                    led.write()
+                dfpreset.set()
+                print("Serial Error")
+            elif udata==0x04:
+                if led:
+                    led[0]=(0,50,50)
+                    led.write()
+                dfpreset.set()
+                print("Checksum invalid")
+            elif udata==0x08:
+                if led:
+                    led[0]=(0,0,50)
+                    led.write()
+                dfpreset.set()
+                print("SDCard Read error")
+            lpin.on()
+            time.sleep(0.5)
+            lpin.off()
         print(ubuf[:10].hex())
-    dfrecv=1
+    uartev.set()
 
 uart1.init(baudrate=9600,tx=Pin(4),rx=Pin(5),timeout=1000)
 uart1.irq(handler=uart_event,trigger=UART.IRQ_RXIDLE,hard=True)
 
 # init dfp power
 dfon=Pin(7, Pin.OUT)
-dfon.value(0)
-time.sleep(1)
+dfon.off()
 
 # dfp busy pin
 stby=Pin(6, Pin.IN)
 
 # dfp functions
 def dfp_write_data(cmd, dataL=0, dataH=0, result=False):
-    global dfrecv
+    global uartev
     if uart1.any()>0:
         uart1.readinto(ubuf)
     checksum=0xffff-(0xff+0x06+cmd+0x00+dataH+dataL)+1
@@ -75,7 +113,7 @@ def dfp_write_data(cmd, dataL=0, dataH=0, result=False):
     uart1.write(cksum)          # checksum High
     uart1.write(b'\xEF')        # Stop
     if result:
-        dfrecv=0
+        uartev.clear()
 
     # give device some time
     if cmd == 0x09:                        # set_media
@@ -89,19 +127,26 @@ def dfp_write_data(cmd, dataL=0, dataH=0, result=False):
       
     # read from dfplayer
     stime = time.ticks_ms()
-    while dfrecv==0:
+    while not uartev.is_set():
         time.sleep(0.01)
         if time.ticks_diff(time.ticks_ms(), stime)>=300:
             if uart1.any()==0:
                 return 0
     nread=uart1.readinto(ubuf)
-    ucmd=ubuf[3]
-    udata=struct.unpack('>h',ubuf[5:7])[0]
+    # try to fix serial data alignment
+    ipos=0
+    for i in range(0,10):
+        if ubuf[i]==0x7e:
+            ipos=i
+            break
+    if ipos>0 and uart1.any()>=ipos:
+        dummy=uart1.read(ipos)
+    # cmd, data
+    ucmd=ubuf[ipos+3]
+    udata=struct.unpack('>h',ubuf[ipos+5:ipos+7])[0]
     return udata
 
 # init dfp
-dfon.value(1)
-time.sleep(1)
 
 config=configreader.ConfigReader()
 config.read('config.txt')
@@ -113,39 +158,47 @@ except:
     pass
 
 timeval = 0
-lastplay=0
+lastdelay=0
+nfiles=0
 
-if led:
-    led[0]=(0,0,50)
-    led.write()
-else:
-    lpin.value(1)
-try:
-    # volume
-    dfp_write_data(cmd=0x06,dataL=vol)
-    # file count
-    nfiles=dfp_write_data(cmd=0x4e,dataL=1,result=True)
-except Exception as e:
-    nfiles=0
-    print(e)
-if led:
-    led[0]=(0,0,0)
-    led.write()
-else:
-    lpin.value(0)
+def dfp_init():
+    global nfiles, lastdelay, vol
+    dfon.off()
+    time.sleep(1)
+    dfon.on()
+    time.sleep(1.5)
+    if led:
+        led[0]=(0,0,50)
+        led.write()
+    else:
+        lpin.on()
+    try:
+        # volume
+        dfp_write_data(cmd=0x06,dataL=vol)
+        # file count
+        nfiles=dfp_write_data(cmd=0x4e,dataL=1,result=True)
+    except Exception as e:
+        nfiles=0
+        print(e)
+    if led:
+        led[0]=(0,0,0)
+        led.write()
+    else:
+        lpin.off()
+    print("MP3 Files : %d" % nfiles)
+    #while not stby.value():
+    #    time.sleep(0.01)
+    print(stby.value())
+    # get volume
+    vol=dfp_write_data(cmd=0x43,result=True)
+    print("volume %d" %vol)
+    lastdelay=10
+    print("delay %d" % lastdelay)
+
 
 def get_delay():
     return random.randrange(180-45)+45
 
-print("MP3 Files : %d" % nfiles)
-#while not stby.value():
-#    time.sleep(0.01)
-print(stby.value())
-# get volume
-vol=dfp_write_data(cmd=0x43,result=True)
-print("volume %d" %vol)
-lastdelay=10
-print("delay %d" % lastdelay)
 
 # timer
 tim=Timer()
@@ -163,7 +216,7 @@ def time_func(t):
                     led[0]=(50,0,0)
                     led.write()
                 else:
-                    lpin.value(1)
+                    lpin.on()
                 # volume
                 dfp_write_data(cmd=0x06,dataL=vol)
                 # prevent repeat
@@ -179,7 +232,7 @@ def time_func(t):
                     led[0]=(0,0,0)
                     led.write()
                 else:
-                    lpin.value(0)
+                    lpin.off()
                 print("play %d" % nplay)
         except KeyboardInterrupt:
             tim.deinit()
@@ -196,14 +249,20 @@ def time_func(t):
                 led[0]=(0,50,0)
                 led.write()
             else:
-                lpin.value(1)
+                lpin.on()
             time.sleep(0.02)
             if led:
                 led[0]=(0,0,0)
                 led.write()
             else:
-                lpin.value(0)
+                lpin.off()
     if userpin and not userpin.value():
         tim.deinit()
-   
+    # reset dfp
+    if dfpreset.is_set():
+        dfpreset.clear()
+        dfp_init()
+        
+# start
+dfp_init()
 tim.init(mode=Timer.PERIODIC, period=1000, callback=time_func)
