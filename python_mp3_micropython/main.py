@@ -33,6 +33,7 @@ lpin.off()
 ucmd=0
 udata=0
 ubuf=bytearray(64)
+dbuf=bytearray(32)
 
 uartev=asyncio.Event()
 uartev.set()
@@ -40,51 +41,59 @@ uartev.set()
 dfpreset=asyncio.Event()
 dfpreset.clear()
 
+trackplay=asyncio.Event()
+trackplay.clear()
+
 uart1=UART(1, 9600)
 
 def uart_event(uart):
+    global uartev
     if uart.any()>=10:
-        micropython.schedule(uart_process,uart)
+        if uartev.is_set():
+            nread=uart.readinto(ubuf)
+            micropython.schedule(uart_process,nread)
+        else:
+            uartev.set()
         
 def uart_process(data):
-    global uartev, dfpreset
-    if uartev.is_set():
-        nread=uart1.readinto(ubuf)
-        # try to fix serial data alignment
-        ipos=0
-        for i in range(0,10):
-            if ubuf[i]==0x7e:
-                ipos=i
-                break
-        if ipos>0 and uart1.any()>=ipos:
-            dummy=uart1.read(ipos)
-        ucmd=ubuf[ipos+3]
-        # error
-        if ucmd==0x40:
-            udata=struct.unpack('>h',buf[ipos+5:ipos+7])[0]
-            if udata==0x03:
-                if led:
-                    led[0]=(50,50,0)
-                    led.write()
-                dfpreset.set()
-                print("Serial Error")
-            elif udata==0x04:
-                if led:
-                    led[0]=(0,50,50)
-                    led.write()
-                dfpreset.set()
-                print("Checksum invalid")
-            elif udata==0x08:
-                if led:
-                    led[0]=(0,0,50)
-                    led.write()
-                dfpreset.set()
-                print("SDCard Read error")
-            lpin.on()
-            time.sleep(0.5)
-            lpin.off()
-        print(ubuf[:10].hex())
-    uartev.set()
+    global uartev, dfpreset, ubuf
+    # try to fix serial data alignment
+    ipos=0
+    for i in range(ipos,data):
+        if ubuf[i]==0x7e:
+            ipos=i
+            break
+    ucmd=ubuf[ipos+3]
+    if ucmd==0x3f:
+        udata=struct.unpack('>h',ubuf[ipos+5:ipos+7])[0]
+        print("media type %d" %udata)
+    #elif ucmd==0x3d:
+    #    trackplay.set()
+    #    udata=struct.unpack('>h',ubuf[ipos+5:ipos+7])[0]
+    #    print("track played %d" %udata)
+    # error
+    elif ucmd==0x40:
+        udata=struct.unpack('>h',ubuf[ipos+5:ipos+7])[0]
+        if udata==0x03:
+            if led:
+                led[0]=(50,50,0)
+                led.write()
+            dfpreset.set()
+            print("Serial Error")
+        elif udata==0x04:
+            if led:
+                led[0]=(0,50,50)
+                led.write()
+            dfpreset.set()
+            print("Checksum invalid")
+        elif udata==0x08:
+            if led:
+                led[0]=(0,0,50)
+                led.write()
+            dfpreset.set()
+            print("SDCard Read error")
+    else:
+        print(ubuf[ipos+3:ipos+7].hex())
 
 uart1.init(baudrate=9600,tx=Pin(4),rx=Pin(5),timeout=1000)
 uart1.irq(handler=uart_event,trigger=UART.IRQ_RXIDLE,hard=True)
@@ -98,9 +107,9 @@ stby=Pin(6, Pin.IN)
 
 # dfp functions
 def dfp_write_data(cmd, dataL=0, dataH=0, result=False):
-    global uartev
-    if uart1.any()>0:
-        uart1.readinto(ubuf)
+    global uartev, dbuf
+    #if uart1.any()>0:
+    #    uart1.readinto(ubuf)
     checksum=0xffff-(0xff+0x06+cmd+0x00+dataH+dataL)+1
     cksum=checksum.to_bytes(2,'big')
     uart1.write(b'\x7E')        # Start
@@ -132,18 +141,16 @@ def dfp_write_data(cmd, dataL=0, dataH=0, result=False):
         if time.ticks_diff(time.ticks_ms(), stime)>=300:
             if uart1.any()==0:
                 return 0
-    nread=uart1.readinto(ubuf)
+    nread=uart1.readinto(dbuf)
     # try to fix serial data alignment
     ipos=0
     for i in range(0,10):
-        if ubuf[i]==0x7e:
+        if dbuf[i]==0x7e:
             ipos=i
             break
-    if ipos>0 and uart1.any()>=ipos:
-        dummy=uart1.read(ipos)
     # cmd, data
-    ucmd=ubuf[ipos+3]
-    udata=struct.unpack('>h',ubuf[ipos+5:ipos+7])[0]
+    ucmd=dbuf[ipos+3]
+    udata=struct.unpack('>h',dbuf[ipos+5:ipos+7])[0]
     return udata
 
 # init dfp
@@ -219,15 +226,16 @@ def time_func(t):
                     lpin.on()
                 # volume
                 dfp_write_data(cmd=0x06,dataL=vol)
-                # prevent repeat
-                dfp_write_data(cmd=0x19,dataL=0x01)
                 # get new MP3 track
                 nplay=lastplay
                 while lastplay==nplay:
                     nplay=random.randrange(nfiles)+1
                 lastplay=nplay
+                trackplay.clear()
                 # play MP3 track
                 dfp_write_data(cmd=0x14,dataL=nplay & 0xff,dataH=0x10+int(nplay/256))
+                # prevent repeat
+                dfp_write_data(cmd=0x19,dataL=0x01)
                 if led:
                     led[0]=(0,0,0)
                     led.write()
