@@ -44,33 +44,42 @@ dfpreset.clear()
 trackplay=asyncio.Event()
 trackplay.clear()
 
+mediaready=asyncio.Event()
+mediaready.clear()
+
+nfiles=0
+
 uart1=UART(1, 9600)
 
 def uart_event(uart):
     global uartev
     if uart.any()>=10:
-        if uartev.is_set():
-            nread=uart.readinto(ubuf)
-            micropython.schedule(uart_process,nread)
-        else:
+        if not uartev.is_set():
             uartev.set()
+        else:
+            micropython.schedule(uart_process,None)
         
 def uart_process(data):
-    global uartev, dfpreset, ubuf
+    global uartev, dfpreset, ubuf, mediaready, nfiles
+    nread=uart1.readinto(ubuf)
     # try to fix serial data alignment
     ipos=0
-    for i in range(ipos,data):
+    for i in range(ipos,nread):
         if ubuf[i]==0x7e:
             ipos=i
             break
     ucmd=ubuf[ipos+3]
     if ucmd==0x3f:
+        mediaready.set()
         udata=struct.unpack('>h',ubuf[ipos+5:ipos+7])[0]
         print("media type %d" %udata)
-    #elif ucmd==0x3d:
-    #    trackplay.set()
-    #    udata=struct.unpack('>h',ubuf[ipos+5:ipos+7])[0]
-    #    print("track played %d" %udata)
+    elif ucmd==0x3d:
+        trackplay.set()
+        udata=struct.unpack('>h',ubuf[ipos+5:ipos+7])[0]
+        print("track played %d" %udata)
+    elif ucmd==0x3b:
+        mediaready.clear()
+        nfiles=0
     # error
     elif ucmd==0x40:
         udata=struct.unpack('>h',ubuf[ipos+5:ipos+7])[0]
@@ -166,10 +175,9 @@ except:
 
 timeval = 0
 lastdelay=0
-nfiles=0
 
 def dfp_init():
-    global nfiles, lastdelay, vol
+    global lastdelay, vol
     dfon.off()
     time.sleep(1)
     dfon.on()
@@ -179,20 +187,13 @@ def dfp_init():
         led.write()
     else:
         lpin.on()
-    try:
-        # volume
-        dfp_write_data(cmd=0x06,dataL=vol)
-        # file count
-        nfiles=dfp_write_data(cmd=0x4e,dataL=1,result=True)
-    except Exception as e:
-        nfiles=0
-        print(e)
+    # volume
+    dfp_write_data(cmd=0x06,dataL=vol)
     if led:
         led[0]=(0,0,0)
         led.write()
     else:
         lpin.off()
-    print("MP3 Files : %d" % nfiles)
     #while not stby.value():
     #    time.sleep(0.01)
     print(stby.value())
@@ -214,11 +215,11 @@ lastplay=0
 timeval=0
 
 def time_func(t):
-    global vol, timeval, lastdelay, lastplay
+    global vol, timeval, lastdelay, lastplay, mediaready, nfiles
     timeval+=1
     if lastdelay<=timeval:
         try:
-            if stby.value():
+            if nfiles and stby.value():
                 if led:
                     led[0]=(50,0,0)
                     led.write()
@@ -266,6 +267,11 @@ def time_func(t):
                 lpin.off()
     if userpin and not userpin.value():
         tim.deinit()
+    if mediaready.is_set():
+        # file count
+        nfiles=dfp_write_data(cmd=0x4e,dataL=1,result=True)
+        mediaready.clear()
+        print("MP3 Files : %d" % nfiles)
     # reset dfp
     if dfpreset.is_set():
         dfpreset.clear()
