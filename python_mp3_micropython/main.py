@@ -33,7 +33,8 @@ lpin.off()
 ucmd=0
 udata=0
 ubuf=bytearray(64)
-dbuf=bytearray(32)
+nread=0
+
 
 uartev=asyncio.Event()
 uartev.set()
@@ -41,68 +42,64 @@ uartev.set()
 dfpreset=asyncio.Event()
 dfpreset.clear()
 
-trackplay=asyncio.Event()
-trackplay.clear()
-
 mediaready=asyncio.Event()
-mediaready.clear()
+mediaready.set()
 
 nfiles=0
 
 uart1=UART(1, 9600)
 
 def uart_event(uart):
-    global uartev
+    global uartev, ubuf, nread
     if uart.any()>=10:
-        if not uartev.is_set():
-            uartev.set()
-        else:
-            micropython.schedule(uart_process,None)
+        nread=uart.readinto(ubuf)
+        uartev.set()
+        # dump data
+        micropython.schedule(uart_process,nread)
         
 def uart_process(data):
-    global uartev, dfpreset, ubuf, mediaready, nfiles
-    nread=uart1.readinto(ubuf)
+    global uartev, dfpreset, ubuf, mediaready, nfilesm, lastplayed
+    iread=data
     # try to fix serial data alignment
     ipos=0
-    for i in range(ipos,nread):
-        if ubuf[i]==0x7e:
-            ipos=i
-            break
-    ucmd=ubuf[ipos+3]
-    if ucmd==0x3f:
-        mediaready.set()
+    while ipos<iread:
+        for i in range(ipos,iread):
+            if ubuf[i]==0x7e:
+                ipos=i
+                break
+        ucmd=ubuf[ipos+3]
         udata=struct.unpack('>h',ubuf[ipos+5:ipos+7])[0]
-        print("media type %d" %udata)
-    elif ucmd==0x3d:
-        trackplay.set()
-        udata=struct.unpack('>h',ubuf[ipos+5:ipos+7])[0]
-        print("track played %d" %udata)
-    elif ucmd==0x3b:
-        mediaready.clear()
-        nfiles=0
-    # error
-    elif ucmd==0x40:
-        udata=struct.unpack('>h',ubuf[ipos+5:ipos+7])[0]
-        if udata==0x03:
-            if led:
-                led[0]=(50,50,0)
-                led.write()
-            dfpreset.set()
-            print("Serial Error")
-        elif udata==0x04:
-            if led:
-                led[0]=(0,50,50)
-                led.write()
-            dfpreset.set()
-            print("Checksum invalid")
-        elif udata==0x08:
-            if led:
-                led[0]=(0,0,50)
-                led.write()
-            dfpreset.set()
-            print("SDCard Read error")
-    else:
-        print(ubuf[ipos+3:ipos+7].hex())
+        if ucmd==0x3f:
+            mediaready.set()
+            print("media type %d" %udata)
+        elif ucmd==0x3d:
+            print("track played %d" % udata)
+        elif ucmd==0x3b:
+            mediaready.clear()
+            nfiles=0
+        # error
+        elif ucmd==0x40:
+            if udata==0x03:
+                if led:
+                    led[0]=(50,50,0)
+                    led.write()
+                dfpreset.set()
+                print("Serial Error")
+            elif udata==0x04:
+                if led:
+                    led[0]=(0,50,50)
+                    led.write()
+                dfpreset.set()
+                print("Checksum invalid")
+            elif udata==0x08:
+                if led:
+                    led[0]=(0,0,50)
+                    led.write()
+                dfpreset.set()
+                print("SDCard Read error")
+        else:
+            print(ubuf[ipos+3:ipos+7].hex())
+        ipos+=10
 
 uart1.init(baudrate=9600,tx=Pin(4),rx=Pin(5),timeout=1000)
 uart1.irq(handler=uart_event,trigger=UART.IRQ_RXIDLE,hard=True)
@@ -116,9 +113,7 @@ stby=Pin(6, Pin.IN)
 
 # dfp functions
 def dfp_write_data(cmd, dataL=0, dataH=0, result=False):
-    global uartev, dbuf
-    #if uart1.any()>0:
-    #    uart1.readinto(ubuf)
+    global uartev, ubuf, nread
     checksum=0xffff-(0xff+0x06+cmd+0x00+dataH+dataL)+1
     cksum=checksum.to_bytes(2,'big')
     uart1.write(b'\x7E')        # Start
@@ -130,8 +125,7 @@ def dfp_write_data(cmd, dataL=0, dataH=0, result=False):
     uart1.write(bytes([dataL])) # DataL
     uart1.write(cksum)          # checksum High
     uart1.write(b'\xEF')        # Stop
-    if result:
-        uartev.clear()
+    uartev.clear()
 
     # give device some time
     if cmd == 0x09:                        # set_media
@@ -139,7 +133,7 @@ def dfp_write_data(cmd, dataL=0, dataH=0, result=False):
     elif cmd == 0x0C:                      # reset
       time.sleep(1.000)
     elif cmd in [0x47,0x48,0x49,0x4E]:     # query files
-      time.sleep(0.500)
+      time.sleep(0.700)
     else:
       time.sleep(0.100)            # other commands
       
@@ -148,18 +142,16 @@ def dfp_write_data(cmd, dataL=0, dataH=0, result=False):
     while not uartev.is_set():
         time.sleep(0.01)
         if time.ticks_diff(time.ticks_ms(), stime)>=300:
-            if uart1.any()==0:
-                return 0
-    nread=uart1.readinto(dbuf)
+            break
     # try to fix serial data alignment
     ipos=0
     for i in range(0,10):
-        if dbuf[i]==0x7e:
+        if ubuf[i]==0x7e:
             ipos=i
             break
     # cmd, data
-    ucmd=dbuf[ipos+3]
-    udata=struct.unpack('>h',dbuf[ipos+5:ipos+7])[0]
+    ucmd=ubuf[ipos+3]
+    udata=struct.unpack('>h',ubuf[ipos+5:ipos+7])[0]
     return udata
 
 # init dfp
@@ -205,7 +197,7 @@ def dfp_init():
 
 
 def get_delay():
-    return random.randrange(180-45)+45
+    return random.randrange(120-45)+45
 
 
 # timer
@@ -232,7 +224,6 @@ def time_func(t):
                 while lastplay==nplay:
                     nplay=random.randrange(nfiles)+1
                 lastplay=nplay
-                trackplay.clear()
                 # play MP3 track
                 dfp_write_data(cmd=0x14,dataL=nplay & 0xff,dataH=0x10+int(nplay/256))
                 # prevent repeat
@@ -270,7 +261,8 @@ def time_func(t):
     if mediaready.is_set():
         # file count
         nfiles=dfp_write_data(cmd=0x4e,dataL=1,result=True)
-        mediaready.clear()
+        if nfiles:
+            mediaready.clear()
         print("MP3 Files : %d" % nfiles)
     # reset dfp
     if dfpreset.is_set():
