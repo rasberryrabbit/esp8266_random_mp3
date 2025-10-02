@@ -8,7 +8,7 @@ import asyncio
 
 micropython.alloc_emergency_exception_buf(100)
 
-random.seed(time.ticks_ms())
+random.seed(time.ticks_us())
 
 is_vcc_gnd=1
 if is_vcc_gnd:
