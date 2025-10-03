@@ -45,6 +45,8 @@ dfpreset.clear()
 mediaready=asyncio.Event()
 mediaready.set()
 
+tmrready=asyncio.Event()
+
 nfiles=0
 
 uart1=UART(1, 9600)
@@ -116,17 +118,23 @@ stby=Pin(6, Pin.IN)
 # dfp functions
 def dfp_write_data(cmd, dataL=0, dataH=0, result=False):
     global uartev, ubuf, nread
+    outbuf=bytearray(10)
     checksum=0xffff-(0xff+0x06+cmd+0x00+dataH+dataL)+1
     cksum=checksum.to_bytes(2,'big')
-    uart1.write(b'\x7E')        # Start
-    uart1.write(b'\xFF')        # Firmware version
-    uart1.write(b'\x06')        # Command length
-    uart1.write(bytes([cmd]))   # Command word
-    uart1.write(b'\x00')        # Feedback flag
-    uart1.write(bytes([dataH])) # DataH
-    uart1.write(bytes([dataL])) # DataL
-    uart1.write(cksum)          # checksum High
-    uart1.write(b'\xEF')        # Stop
+    
+    outbuf[0]=0x7e				# start
+    outbuf[1]=0xff				# firmware version
+    outbuf[2]=0x06				# command length
+    outbuf[3]=bytes([cmd])[0]	# command
+    outbuf[4]=0x00				# feedback flag
+    outbuf[5]=bytes([dataH])[0]	# data high
+    outbuf[6]=bytes([dataL])[0]	# data low
+    outbuf[7]=cksum[0]			# checksum high
+    outbuf[8]=cksum[1]			# checksum low
+    outbuf[9]=0xef				# stop
+    uart1.write(outbuf)
+    uart1.flush()
+        
     uartev.clear()
 
     # give device some time
@@ -210,66 +218,72 @@ timeval=0
 
 def time_func(t):
     global vol, timeval, lastdelay, lastplay, mediaready, nfiles
-    timeval+=1
-    if lastdelay<=timeval:
-        try:
-            if nfiles and stby.value():
+    if tmrready.is_set():
+        return
+    tmrready.set()
+    try:
+        timeval+=1
+        if lastdelay<=timeval:
+            try:
+                if nfiles and stby.value():
+                    if led:
+                        led[0]=(50,0,0)
+                        led.write()
+                    else:
+                        lpin.on()
+                    # volume
+                    dfp_write_data(cmd=0x06,dataL=vol)
+                    # get new MP3 track
+                    nplay=lastplay
+                    while lastplay==nplay:
+                        nplay=random.randrange(nfiles)+1
+                    lastplay=nplay
+                    # play MP3 track
+                    dfp_write_data(cmd=0x14,dataL=nplay & 0xff,dataH=0x10+int(nplay/256))
+                    # prevent repeat
+                    dfp_write_data(cmd=0x19,dataL=0x01)
+                    if led:
+                        led[0]=(0,0,0)
+                        led.write()
+                    else:
+                        lpin.off()
+                    print("play %d" % nplay)
+            except KeyboardInterrupt:
+                tim.deinit()
+            except Exception as e:
+                print(e)
+            # reset timer
+            timeval=0
+            lastdelay=get_delay()
+            print("lastdelay %d" % lastdelay)
+        else:
+            # blink every 10 seconds
+            if timeval % 10==0:
                 if led:
-                    led[0]=(50,0,0)
+                    led[0]=(0,50,0)
                     led.write()
                 else:
                     lpin.on()
-                # volume
-                dfp_write_data(cmd=0x06,dataL=vol)
-                # get new MP3 track
-                nplay=lastplay
-                while lastplay==nplay:
-                    nplay=random.randrange(nfiles)+1
-                lastplay=nplay
-                # play MP3 track
-                dfp_write_data(cmd=0x14,dataL=nplay & 0xff,dataH=0x10+int(nplay/256))
-                # prevent repeat
-                dfp_write_data(cmd=0x19,dataL=0x01)
+                time.sleep(0.02)
                 if led:
                     led[0]=(0,0,0)
                     led.write()
                 else:
                     lpin.off()
-                print("play %d" % nplay)
-        except KeyboardInterrupt:
+        if userpin and not userpin.value():
             tim.deinit()
-        except Exception as e:
-            print(e)
-        # reset timer
-        timeval=0
-        lastdelay=get_delay()
-        print("lastdelay %d" % lastdelay)
-    else:
-        # blink every 10 seconds
-        if timeval % 10==0:
-            if led:
-                led[0]=(0,50,0)
-                led.write()
-            else:
-                lpin.on()
-            time.sleep(0.02)
-            if led:
-                led[0]=(0,0,0)
-                led.write()
-            else:
-                lpin.off()
-    if userpin and not userpin.value():
-        tim.deinit()
-    if mediaready.is_set():
-        # file count
-        nfiles=dfp_write_data(cmd=0x4e,dataL=1,result=True)
-        if nfiles:
-            mediaready.clear()
-        print("MP3 Files : %d" % nfiles)
-    # reset dfp
-    if dfpreset.is_set():
-        dfpreset.clear()
-        dfp_init()
+        if mediaready.is_set():
+            # file count
+            nfiles=dfp_write_data(cmd=0x4e,dataL=1,result=True)
+            if nfiles:
+                mediaready.clear()
+            print("MP3 Files : %d" % nfiles)
+        # reset dfp
+        if dfpreset.is_set():
+            dfpreset.clear()
+            dfp_init()
+    finally:
+        tmrready.clear()
         
 # start
 dfp_init()
