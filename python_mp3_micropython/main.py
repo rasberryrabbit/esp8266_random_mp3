@@ -32,7 +32,7 @@ lpin.off()
 # init uart
 ucmd=0
 udata=0
-ubuf=bytearray(64)
+ubuf=bytearray(32)
 nread=0
 
 
@@ -48,11 +48,12 @@ mediaready.set()
 nfiles=0
 
 uart1=UART(1, 9600)
+uart1.init(baudrate=9600,tx=Pin(4),rx=Pin(5),timeout=1000)
 
 def uart_event(uart):
     global uartev, ubuf, nread
     if uart.any()>=10:
-        nread=uart.readinto(ubuf)
+        nread=uart.readinto(ubuf,10)
         uartev.set()
         # dump data
         micropython.schedule(uart_process,nread)
@@ -62,46 +63,47 @@ def uart_process(data):
     iread=data
     # try to fix serial data alignment
     ipos=0
-    while ipos<iread:
-        for i in range(ipos,iread):
-            if ubuf[i]==0x7e:
-                ipos=i
-                break
-        ucmd=ubuf[ipos+3]
-        udata=struct.unpack('>h',ubuf[ipos+5:ipos+7])[0]
-        if ucmd==0x3f:
-            mediaready.set()
-            print("media type %d" %udata)
-        elif ucmd==0x3d:
-            print("track played %d" % udata)
-        elif ucmd==0x3b:
-            mediaready.clear()
-            nfiles=0
-        # error
-        elif ucmd==0x40:
-            if udata==0x03:
-                if led:
-                    led[0]=(50,50,0)
-                    led.write()
-                dfpreset.set()
-                print("Serial Error")
-            elif udata==0x04:
-                if led:
-                    led[0]=(0,50,50)
-                    led.write()
-                dfpreset.set()
-                print("Checksum invalid")
-            elif udata==0x08:
-                if led:
-                    led[0]=(0,0,50)
-                    led.write()
-                dfpreset.set()
-                print("SDCard Read error")
-        else:
-            print(ubuf[ipos+3:ipos+7].hex())
-        ipos+=10
+    for i in range(ipos,iread):
+        if ubuf[i]==0x7e:
+            ipos=i
+            break
+    ucmd=ubuf[ipos+3]
+    udata=struct.unpack('>h',ubuf[ipos+5:ipos+7])[0]
+    if ucmd==0x3f:
+        mediaready.set()
+        print("media type %d" %udata)
+    #elif ucmd==0x3d:
+    #    print("track played %d" % udata)
+    elif ucmd==0x3b:
+        mediaready.clear()
+        nfiles=0
+    # error
+    elif ucmd==0x40:
+        if udata==0x03:
+            if led:
+                led[0]=(50,50,0)
+                led.write()
+            dfpreset.set()
+            print("Serial Error")
+        elif udata==0x04:
+            if led:
+                led[0]=(0,50,50)
+                led.write()
+            dfpreset.set()
+            print("Checksum invalid")
+        elif udata==0x08:
+            if led:
+                led[0]=(0,0,50)
+                led.write()
+            dfpreset.set()
+            print("SDCard Read error")
+    else:
+        print(ubuf[ipos+3:ipos+7].hex())
+    # more serial data
+    if uart1.any()>=10:
+        micropython.schedule(uart_event,uart1)
 
-uart1.init(baudrate=9600,tx=Pin(4),rx=Pin(5),timeout=1000)
+
 uart1.irq(handler=uart_event,trigger=UART.IRQ_RXIDLE,hard=True)
 
 # init dfp power
