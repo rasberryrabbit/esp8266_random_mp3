@@ -23,7 +23,7 @@ if is_vcc_gnd:
 else:
     userpin=None
     led=None
-
+    
 # turn off led, VCC GND
 lpin=Pin(25, Pin.OUT)
 lpin.off()
@@ -175,6 +175,32 @@ except:
     vol=8
     pass
 
+# userpin as volume control
+lastpinTime=0
+def update_config(v):
+    print("volume: %d" % vol)
+    # update config file
+    try:
+        f = open("config.txt",'w')
+        f.write("vol=%d" % vol)
+        f.close()
+    except:
+        pass    
+
+def pin_intr(pin):
+    global lastpinTime, vol
+    if userpin.value()==0:
+        lastpinTime=time.ticks_ms()
+    else:
+        if time.ticks_diff(time.ticks_ms(), lastpinTime)>=1000:
+            vol=vol+1
+        else:
+            vol=vol-1
+        micropython.schedule(update_config,vol)
+
+if userpin:
+    userpin.irq(trigger=Pin.IRQ_FALLING | Pin.IRQ_RISING, handler=pin_intr)
+
 timeval = 0
 lastdelay=0
 
@@ -270,8 +296,6 @@ def time_func(t):
                     led.write()
                 else:
                     lpin.off()
-        if userpin and not userpin.value():
-            tim.deinit()
         if mediaready.is_set():
             # file count
             nfiles=dfp_write_data(cmd=0x4e,dataL=1,result=True)
@@ -281,7 +305,7 @@ def time_func(t):
         # reset dfp
         if dfpreset.is_set():
             dfpreset.clear()
-            dfp_init()
+            dfp_init()            
     finally:
         tmrready.clear()
         
