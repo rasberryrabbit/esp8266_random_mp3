@@ -21,7 +21,7 @@ if is_vcc_gnd:
     # user input , 0 = active, VCC GND
     userpin=Pin(24, Pin.IN, Pin.PULL_UP)
 else:
-    userpin=None
+    userpin=Pin(28, Pin.IN, Pin.PULL_UP)
     led=None
     
 # turn off led, VCC GND
@@ -184,6 +184,12 @@ def update_config(v):
         f = open("config.txt",'w')
         f.write("vol=%d" % vol)
         f.close()
+        if led:
+            led[0]=(0,0,50)
+            led.write()
+            time.sleep(0.01)
+            led[0]=(0,0,0)
+            led.write()
     except:
         pass    
 
@@ -196,6 +202,10 @@ def pin_intr(pin):
             vol=vol+1
         else:
             vol=vol-1
+        if vol<1:
+            vol=1
+        elif vol>30:
+            vol=30
         micropython.schedule(update_config,vol)
 
 if userpin:
@@ -305,7 +315,7 @@ def time_func(t):
         # reset dfp
         if dfpreset.is_set():
             dfpreset.clear()
-            dfp_init()            
+            dfp_init()
     finally:
         tmrready.clear()
         
