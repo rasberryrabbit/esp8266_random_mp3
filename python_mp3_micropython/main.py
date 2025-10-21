@@ -45,6 +45,9 @@ dfpreset.clear()
 mediaready=asyncio.Event()
 mediaready.set()
 
+played=asyncio.Event()
+played.set()
+
 tmrready=asyncio.Event()
 
 nfiles=0
@@ -74,8 +77,9 @@ def uart_process(data):
     if ucmd==0x3f:
         mediaready.set()
         print("media type %d" %udata)
-    #elif ucmd==0x3d:
-    #    print("track played %d" % udata)
+    elif ucmd==0x3d:
+        played.clear()
+        print(ubuf[ipos+5:ipos+7].hex())    
     elif ucmd==0x3b:
         mediaready.clear()
         nfiles=0
@@ -119,14 +123,15 @@ stby=Pin(6, Pin.IN)
 def dfp_write_data(cmd, dataL=0, dataH=0, result=False):
     global uartev, ubuf, nread
     outbuf=bytearray(10)
-    checksum=0xffff-(0xff+0x06+cmd+0x00+dataH+dataL)+1
+    feedback=0x01
+    checksum=0xffff-(0xff+0x06+cmd+feedback+dataH+dataL)+1
     cksum=checksum.to_bytes(2,'big')
     
     outbuf[0]=0x7e				# start
     outbuf[1]=0xff				# firmware version
     outbuf[2]=0x06				# command length
     outbuf[3]=bytes([cmd])[0]	# command
-    outbuf[4]=0x00				# feedback flag
+    outbuf[4]=feedback			# feedback flag
     outbuf[5]=bytes([dataH])[0]	# data high
     outbuf[6]=bytes([dataL])[0]	# data low
     outbuf[7]=cksum[0]			# checksum high
@@ -291,12 +296,26 @@ def time_func(t):
             # reset timer
             timeval=0
             lastdelay=get_delay()
-            print("lastdelay %d" % lastdelay)
+            print("delay %d" % lastdelay)
         else:
             # blink every 10 seconds
-            if timeval % 10==0:
+            if stby.value():
+                if timeval % 10==0:
+                    if led:
+                        led[0]=(0,50,0)
+                        led.write()
+                    else:
+                        lpin.on()
+                    time.sleep(0.02)
+                    if led:
+                        led[0]=(0,0,0)
+                        led.write()
+                    else:
+                        lpin.off()
+            elif timeval>300:
+                dfpreset.set()
                 if led:
-                    led[0]=(0,50,0)
+                    led[0]=(0,0,50)
                     led.write()
                 else:
                     lpin.on()
@@ -306,6 +325,7 @@ def time_func(t):
                     led.write()
                 else:
                     lpin.off()
+
         if mediaready.is_set():
             # file count
             nfiles=dfp_write_data(cmd=0x4e,dataL=1,result=True)
